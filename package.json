@@ -1,0 +1,12 @@
+{
+  "name": "lilauth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.7.0" },
+  "scripts": {
+    "start": "node src/main.mjs",
+    "hash-password": "node scripts/hash-password.mjs",
+    "test": "node --test"
+  }
+}

@@ -1,0 +1,37 @@
+---
+# Remove a backend's two environment entries and mount to run with only one.
+services:
+  lilauth:
+    build: .
+    ports:
+      - '127.0.0.1:3000:3000'
+    environment:
+      LILCO_AUTH_MODE: local
+      LILCO_ADMIN_USERNAME: ${LILCO_ADMIN_USERNAME:?set the dashboard username}
+      LILCO_ADMIN_PASSWORD_HASH_FILE: /run/secrets/admin-password.hash
+      LILCO_PUBLIC_ORIGIN: ${LILCO_PUBLIC_ORIGIN:?set the HTTPS origin}
+      LILCO_LISTEN_HOST: 0.0.0.0
+      LILCO_LILBOARD_ORIGIN: ${LILCO_LILBOARD_ORIGIN:?set the lilboard origin}
+      LILCO_LILBOARD_MANAGEMENT_TOKEN_FILE: /run/secrets/lilboard.token
+      LILCO_LILVAULT_ORIGIN: ${LILCO_LILVAULT_ORIGIN:?set the lilvault origin}
+      LILCO_LILVAULT_MANAGEMENT_TOKEN_FILE: /run/secrets/lilvault.token
+    read_only: true
+    volumes:
+      - type: bind
+        source: ./secrets/admin-password.hash
+        target: /run/secrets/admin-password.hash
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./secrets/lilboard.token
+        target: /run/secrets/lilboard.token
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./secrets/lilvault.token
+        target: /run/secrets/lilvault.token
+        read_only: true
+        bind:
+          create_host_path: false
