@@ -1,0 +1,100 @@
+/* shortcut: @lilco/ui is private to lilboard; keep these tokens in sync
+   manually until its CSS can be consumed without a build step. */
+:root {
+  color-scheme: light dark;
+  --lil-paper: #f7f0df;
+  --lil-surface: #fffaf0;
+  --lil-subtle: #eee2c9;
+  --lil-ink: #28251f;
+  --lil-muted: #6b6256;
+  --lil-line: #d8cbb2;
+  --lil-berry: #8d234d;
+  --lil-berry-fill: #f5e2e7;
+  --lil-mark: #b43862;
+  --lil-mark-ink: #fffaf0;
+  --lil-positive: #31543e;
+  --lil-positive-fill: #e5ecde;
+  --lil-attention: #71490f;
+  --lil-attention-fill: #f4e8ca;
+  --lil-radius: 10px;
+  --lil-display: Georgia, "Times New Roman", serif;
+  --lil-body: system-ui, sans-serif;
+  --lil-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --lil-paper: #23201d;
+    --lil-surface: #2d2823;
+    --lil-subtle: #383029;
+    --lil-ink: #f7f0df;
+    --lil-muted: #c6b8a6;
+    --lil-line: #56493e;
+    --lil-berry: #ffabc6;
+    --lil-berry-fill: #502c3b;
+    --lil-positive: #badaac;
+    --lil-positive-fill: #313d2f;
+    --lil-attention: #f1ce8b;
+    --lil-attention-fill: #493820;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { min-width: 320px; }
+body { margin: 0; background: var(--lil-paper); color: var(--lil-ink); font: 400 0.9375rem/1.55 var(--lil-body); }
+a { color: var(--lil-berry); text-underline-offset: 0.2em; }
+:is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--lil-berry); outline-offset: 2px; }
+.skip:not(:focus) { position: absolute; clip-path: inset(50%); }
+.skip:focus { position: fixed; z-index: 2; top: 0.5rem; left: 0.5rem; padding: 0.5rem 0.75rem; background: var(--lil-surface); }
+.masthead { border-bottom: 1px solid var(--lil-line); background: var(--lil-surface); }
+.masthead-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; max-width: 90rem; margin: auto; padding: 0.9rem clamp(1rem, 4vw, 2rem); }
+.brand { display: flex; align-items: center; gap: 0.625rem; color: var(--lil-ink); font: 700 1.25rem var(--lil-display); text-decoration: none; }
+.mark { display: grid; place-items: center; width: 1.875rem; height: 1.875rem; border-radius: 50%; background: var(--lil-mark); color: var(--lil-mark-ink); font: 700 1.125rem var(--lil-body); transform: rotate(-9deg); }
+.masthead-label, .eyebrow { color: var(--lil-muted); font: 650 0.7rem/1.5 var(--lil-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.shell { max-width: 90rem; margin: auto; padding: clamp(2rem, 5vw, 3.5rem) clamp(1rem, 4vw, 2rem) 5rem; }
+.page-heading { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; }
+h1, h2 { margin: 0; font-family: var(--lil-display); line-height: 1.2; }
+h1 { margin-top: 0.35rem; font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -0.035em; }
+h2 { font-size: 1.375rem; letter-spacing: -0.02em; }
+h3 { margin: 0; font-size: 1rem; }
+p { margin: 0 0 1rem; }
+.lede { margin: 0.5rem 0 0; color: var(--lil-muted); }
+.panel { min-width: 0; border: 1px solid var(--lil-line); border-radius: var(--lil-radius); background: var(--lil-surface); }
+.panel-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--lil-line); }
+.panel-body { padding: 1.25rem; }
+.panel-body > :last-child { margin-bottom: 0; }
+.layout { display: grid; grid-template-columns: minmax(18rem, 25rem) minmax(0, 1fr); align-items: start; gap: 1.25rem; }
+.registry { display: grid; gap: 1.25rem; min-width: 0; }
+.registry-title { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.count, .badge { display: inline-block; border-radius: 0.375rem; background: var(--lil-subtle); color: var(--lil-muted); font: 650 0.75rem/1.5 var(--lil-mono); padding: 0.15rem 0.5rem; }
+label { display: block; margin: 0 0 0.875rem; font-weight: 650; }
+label small { display: block; margin-top: 0.35rem; font-weight: 400; color: var(--lil-muted); }
+input, select, textarea { display: block; width: 100%; min-width: 0; margin-top: 0.35rem; padding: 0.7rem 0.8rem; border: 1px solid var(--lil-line); border-radius: 0.375rem; background: var(--lil-paper); color: var(--lil-ink); font: inherit; }
+textarea { resize: vertical; }
+button { min-height: 2.5rem; padding: 0.55rem 0.9rem; border: 1px solid var(--lil-berry); border-radius: 0.375rem; background: var(--lil-berry); color: var(--lil-surface); font: 650 0.875rem var(--lil-body); cursor: pointer; }
+button:hover { filter: brightness(1.12); }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+button.quiet { background: transparent; border-color: var(--lil-line); color: var(--lil-ink); }
+button.quiet:hover { background: var(--lil-subtle); filter: none; }
+button.small { min-height: 2rem; padding: 0.35rem 0.65rem; }
+.hint { color: var(--lil-muted); font-size: 0.8125rem; }
+.notice { padding: 0.75rem 0.9rem; border-radius: 0.375rem; background: var(--lil-attention-fill); color: var(--lil-attention); font-size: 0.875rem; }
+.notice[role="alert"] { border: 1px solid var(--lil-attention); }
+.empty { padding: 1.25rem; color: var(--lil-muted); }
+.table-wrap { max-width: 100%; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th, td { padding: 0.8rem 1rem; border-bottom: 1px solid var(--lil-line); vertical-align: middle; }
+thead th { color: var(--lil-muted); font: 650 0.7rem/1.5 var(--lil-mono); letter-spacing: 0.05em; text-transform: uppercase; }
+tbody tr:last-child > * { border-bottom: 0; }
+tbody th { font-weight: 650; overflow-wrap: anywhere; }
+td.grants { max-width: 26rem; overflow-wrap: anywhere; color: var(--lil-muted); font-size: 0.8125rem; }
+td.actions { white-space: nowrap; text-align: right; }
+code, .token { font-family: var(--lil-mono); font-size: 0.85em; overflow-wrap: anywhere; }
+.token { display: block; padding: 1rem; border: 1px solid var(--lil-line); border-radius: 0.375rem; background: var(--lil-paper); user-select: all; }
+.result-list { display: grid; gap: 1rem; max-width: 45rem; }
+.result-list .panel-body { display: grid; gap: 0.75rem; }
+.result-list .panel-body p { margin: 0; }
+.login-panel { max-width: 28rem; }
+.login-panel button { width: 100%; }
+.footer { margin-top: 2rem; color: var(--lil-muted); font-size: 0.8125rem; }
+@media (max-width: 850px) { .layout { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .masthead-label { display: none; } th, td { padding: 0.65rem; } td.actions { white-space: normal; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }

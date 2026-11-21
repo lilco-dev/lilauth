@@ -1,6 +1,6 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
-import { actionResult, dashboard, login, page } from './html.mjs';
+import { actionResult, dashboard, login, page, styleHash } from './html.mjs';
 import { lilboard } from './lilboard.mjs';
 import { lilvault, parseVaultGrants } from './lilvault.mjs';
 import { verifyPassword } from './password.mjs';
@@ -14,7 +14,7 @@ function respond(res, status, html, headers) {
   res.writeHead(status, {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-store',
-    'Content-Security-Policy': "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+    'Content-Security-Policy': `default-src 'none'; style-src 'sha256-${styleHash}'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
     'Referrer-Policy': 'same-origin',
     'X-Content-Type-Options': 'nosniff',
     ...headers,

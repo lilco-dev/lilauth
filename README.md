@@ -5,7 +5,9 @@ credentials and grants, mint a new agent on either or both configured backends,
 and revoke agent credentials individually. Copy each new token from the result
 page: Lilauth does not store generated tokens or show them in any later response.
 Give each token to its intended agent securely; agents call the upstreams
-directly. Lilauth is not an agent proxy.
+directly. Lilauth is not an agent proxy. The UI uses the Tiny Club tokens
+from lilboard's `@lilco/ui` in `src/style.css`, embedded with a CSP hash; it
+remains dependency-free, server-rendered HTML with no client JavaScript.
 
 ## Run locally
 

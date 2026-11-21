@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
@@ -99,12 +100,17 @@ async function setup(t) {
 test('local login, protected form routes, CSRF, and logout', async (t) => {
   const app = await setup(t);
   const anonymous = await app.get();
-  assert.match(await anonymous.text(), /Sign in to Lilauth/);
+  const signInPage = await anonymous.text();
+  assert.match(signInPage, /Sign in to Lilauth/);
+  const stylesheet = signInPage.match(/<style>([\s\S]*?)<\/style>/)?.[1];
+  assert(stylesheet?.includes('--lil-paper'));
+  const digest = createHash('sha256').update(stylesheet).digest('base64');
+  assert(anonymous.headers.get('content-security-policy').includes(`style-src 'sha256-${digest}'`));
   assert.equal(anonymous.headers.get('cache-control'), 'no-store');
   assert.equal((await app.post('/login', { username, password }, { Origin: wrongOrigin })).status, 403);
   const badLogin = await app.post('/login', { username, password: 'bad<&password>' });
   assert.equal(badLogin.status, 401);
-  assert.doesNotMatch(await badLogin.text(), /bad|&lt;&amp;/);
+  assert.doesNotMatch(await badLogin.text(), /bad&lt;&amp;password&gt;|bad<&password>/);
   assert.equal((await app.post('/mint', { target: 'lilboard', name: 'new' })).status, 401);
   assert.deepEqual(app.board.calls, []);
   const session = await app.signIn();
