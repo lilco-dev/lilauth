@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import test from 'node:test';
+import { runInNewContext } from 'node:vm';
 import { readConfig } from '../src/config.mjs';
 import { createPasswordHash, parsePasswordHash } from '../src/password.mjs';
 import { createLilauth } from '../src/server.mjs';
@@ -48,6 +49,9 @@ async function fakeBackend(t, board) {
     fake.calls.push({ method, path: req.url, body, auth: req.headers.authorization });
     if (req.headers.authorization !== `Bearer ${managementToken}`) {
       res.writeHead(403).end();
+    } else if (!board && method === 'GET' && req.url === '/v1/auth/vaults') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ vaults: fake.badVaultList ? ['private', 'private'] : ['private', 'public'] }));
     } else if (method === 'GET' && req.url === path && fake.redirectList) {
       res.writeHead(302, { Location: '/redirect-trap' }).end(listLeak);
     } else if (method === 'GET' && req.url === path) {
@@ -115,6 +119,10 @@ test('local login, protected form routes, CSRF, and logout', async (t) => {
   assert.deepEqual(app.board.calls, []);
   const session = await app.signIn();
   assert.match(session.dashboard, /all-board access/);
+  assert(session.dashboard.indexOf('Agent name <input') < session.dashboard.indexOf('Backend <select'));
+  assert.match(session.dashboard, /<fieldset data-vault-grants hidden disabled>/);
+  assert.match(session.dashboard, /data-vault="private"/);
+  assert.match(session.dashboard, /data-vault="public"/);
   assert.match(session.dashboard, /private:read/);
   assert.match(session.dashboard, /auth:manage/);
   assert.match(session.dashboard, /&lt;img src=x onerror=alert\(1\)&gt;/);
@@ -131,6 +139,54 @@ test('local login, protected form routes, CSRF, and logout', async (t) => {
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0; Secure$/);
   assert.equal((await session.post('/mint', { target: 'lilboard', name: 'new' })).status, 401);
   assert.match(await (await app.get(session.cookie)).text(), /Sign in to Lilauth/);
+});
+
+test('vault grant controls are conditional, serialize multiple grants, and obey CSP', async (t) => {
+  const app = await setup(t);
+  const session = await app.signIn();
+  const response = await app.get(session.cookie);
+  const html = await response.text();
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  assert(script);
+  const digest = createHash('sha256').update(script).digest('base64');
+  assert(response.headers.get('content-security-policy').includes(`script-src 'sha256-${digest}'`));
+  const selects = [
+    { dataset: { vault: 'private' }, value: 'read' },
+    { dataset: { vault: 'public' }, value: 'read-write' },
+  ];
+  const grants = { hidden: true, disabled: true, querySelectorAll: () => selects };
+  const boardNote = { hidden: false };
+  const handlers = {};
+  const form = {
+    elements: {
+      target: { value: 'lilboard', addEventListener: (_, handler) => { handlers.change = handler; } },
+      permissions: { value: '' },
+    },
+    querySelector: (selector) => selector === '[data-vault-grants]' ? grants : boardNote,
+    addEventListener: (_, handler) => { handlers.submit = handler; },
+  };
+  runInNewContext(script, { document: { querySelector: () => form } });
+  assert.equal(grants.hidden, true);
+  form.elements.target.value = 'lilvault';
+  handlers.change();
+  assert.equal(grants.hidden, false);
+  assert.equal(grants.disabled, false);
+  assert.equal(boardNote.hidden, true);
+  handlers.submit();
+  assert.equal(form.elements.permissions.value, 'private:read\npublic:read-write');
+  form.elements.target.value = 'both';
+  handlers.change();
+  assert.equal(grants.hidden, false);
+  form.elements.target.value = 'lilboard';
+  handlers.change();
+  handlers.submit();
+  assert.equal(grants.disabled, true);
+  assert.equal(boardNote.hidden, false);
+  assert.equal(form.elements.permissions.value, '');
+  app.vault.badVaultList = true;
+  const unavailable = await (await app.get(session.cookie)).text();
+  assert.match(unavailable, /value="lilvault" disabled/);
+  assert.match(unavailable, /Vaults unavailable/);
 });
 
 test('sessions expire without relying on the browser cookie expiry', async (t) => {
@@ -236,7 +292,7 @@ test('an ambiguous write pauses only that backend; partial mint preserves succes
   const dashboard = await (await app.get(session.cookie)).text();
   assert.match(dashboard, /outcome unknown; writes paused/);
   assert.match(dashboard, /private:read/);
-  assert.equal(app.vault.calls.length, vaultCalls + 1);
+  assert.equal(app.vault.calls.length, vaultCalls + 2);
   assert.equal((await session.post('/revoke', { target: 'lilboard', name: 'old' })).status, 200);
 });
 

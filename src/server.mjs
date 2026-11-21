@@ -1,6 +1,6 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
-import { actionResult, dashboard, login, page, styleHash } from './html.mjs';
+import { actionResult, dashboard, login, page, scriptHash, styleHash } from './html.mjs';
 import { lilboard } from './lilboard.mjs';
 import { lilvault, parseVaultGrants } from './lilvault.mjs';
 import { verifyPassword } from './password.mjs';
@@ -14,7 +14,7 @@ function respond(res, status, html, headers) {
   res.writeHead(status, {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-store',
-    'Content-Security-Policy': `default-src 'none'; style-src 'sha256-${styleHash}'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
+    'Content-Security-Policy': `default-src 'none'; style-src 'sha256-${styleHash}'; script-src 'sha256-${scriptHash}'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
     'Referrer-Policy': 'same-origin',
     'X-Content-Type-Options': 'nosniff',
     ...headers,
@@ -58,9 +58,12 @@ export function createLilauth(config) {
     const session = sessions.get(id);
     if (req.method === 'GET' && req.url === '/') {
       if (!session) return respond(res, 200, login());
-      const views = await Promise.all([...backends.values()].map(async ({ label, list, writeWarning }) => {
-        const entries = await list().catch(() => undefined);
-        return { label, entries, warning: writeWarning() };
+      const views = await Promise.all([...backends.values()].map(async ({ label, list, grantableVaults, writeWarning }) => {
+        const [entries, vaults] = await Promise.all([
+          list().catch(() => undefined),
+          grantableVaults?.().catch(() => undefined),
+        ]);
+        return { label, entries, vaults, warning: writeWarning() };
       }));
       return respond(res, 200, dashboard(session.csrf, views));
     }

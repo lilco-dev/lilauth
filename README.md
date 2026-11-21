@@ -6,8 +6,9 @@ and revoke agent credentials individually. Copy each new token from the result
 page: Lilauth does not store generated tokens or show them in any later response.
 Give each token to its intended agent securely; agents call the upstreams
 directly. Lilauth is not an agent proxy. The UI uses the Tiny Club tokens
-from lilboard's `@lilco/ui` in `src/style.css`, embedded with a CSP hash; it
-remains dependency-free, server-rendered HTML with no client JavaScript.
+from lilboard's `@lilco/ui` in `src/style.css`, embedded with a CSP hash. It
+remains dependency-free, server-rendered HTML; one CSP-hashed inline script
+shows vault selectors for lilvault and submits their grants.
 
 ## Run locally
 
@@ -64,7 +65,7 @@ five-second deadlines.
 | Backend | Startup settings | What the dashboard actually needs |
 | --- | --- | --- |
 | lilboard | `LILCO_LILBOARD_ORIGIN`, `LILCO_LILBOARD_MANAGEMENT_TOKEN_FILE` | A real `kind=admin` actor token on the server runtime, for `GET`/`POST /api/auth/agents` and `DELETE /api/auth/agents/{name}`. The Cloudflare Worker runtime does not implement this surface. |
-| lilvault | `LILCO_LILVAULT_ORIGIN`, `LILCO_LILVAULT_MANAGEMENT_TOKEN_FILE` | An agent token with the reserved `auth:manage` permission, for `GET`/`POST /v1/auth/agents` and `DELETE /v1/auth/agents/{name}`. Enable `[auth] keys_dir` upstream for mint and revoke. |
+| lilvault | `LILCO_LILVAULT_ORIGIN`, `LILCO_LILVAULT_MANAGEMENT_TOKEN_FILE` | An agent token with the reserved `auth:manage` permission, for `GET`/`POST /v1/auth/agents`, `GET /v1/auth/vaults`, and `DELETE /v1/auth/agents/{name}`. Enable `[auth] keys_dir` upstream for mint and revoke. |
 
 - **lilboard:** Bootstrap a dedicated admin per the lilboard README (for
   example, a `<name>.admin.token` in the upstream keys directory). The token can
@@ -76,9 +77,10 @@ five-second deadlines.
   documentation. `auth:manage` alone does not grant access to vault contents,
   but it can mint credentials with data access to any configured vault, mint
   other managers, and revoke credentials. Do not grant the dashboard any
-  additional vault access. Dashboard mints are limited to explicitly named
-  existing vaults, with one `vault:read` or `vault:read-write` grant per vault;
-  `auth:manage` cannot be minted here. Existing managers are list-only here.
+  additional vault access. The dashboard lists grantable vault IDs through
+  the manager-only `/v1/auth/vaults` endpoint; for each, choose No access,
+  Read, or Read-write. If that listing fails, lilvault minting is disabled in
+  the UI. `auth:manage` cannot be minted here. Existing managers are list-only.
 
 Copy only the dedicated management token file for each configured upstream to
 Lilauth. Do not mount either upstream's credential directory, permissions, or

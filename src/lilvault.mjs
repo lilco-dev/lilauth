@@ -1,5 +1,5 @@
 import { tokenPattern } from './config.mjs';
-import { identifier, managedAgents } from './upstream.mjs';
+import { identifier, managedAgents, readLimited } from './upstream.mjs';
 
 const vaultGrant = /^[A-Za-z0-9_-]{1,64}:(?:read|read-write)$/;
 
@@ -22,7 +22,7 @@ export function parseVaultGrants(input) {
 }
 
 export function lilvault(config) {
-  return managedAgents(config, {
+  const manager = managedAgents(config, {
     label: 'lilvault',
     path: '/v1/auth/agents',
     // DELETE can fail while removing key files after revoking the in-memory credential.
@@ -40,4 +40,21 @@ export function lilvault(config) {
       return result.token;
     },
   });
+  return {
+    ...manager,
+    async grantableVaults() {
+      const response = await fetch(`${config.origin}/v1/auth/vaults`, {
+        headers: { Authorization: `Bearer ${config.token}` },
+        redirect: 'error', signal: AbortSignal.timeout(5000),
+      });
+      if (response.status !== 200) {
+        await response.body?.cancel();
+        throw new Error('vault listing unavailable');
+      }
+      const { vaults } = JSON.parse(await readLimited(response.body, 512 * 1024));
+      if (!Array.isArray(vaults) || !vaults.every((id) => typeof id === 'string' && identifier.test(id)) ||
+          new Set(vaults).size !== vaults.length) throw new Error('invalid vault list');
+      return vaults;
+    },
+  };
 }
