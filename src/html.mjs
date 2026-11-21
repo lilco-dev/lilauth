@@ -4,26 +4,6 @@ import { readFileSync } from 'node:fs';
 const styles = readFileSync(new URL('./style.css', import.meta.url), 'utf8');
 export const styleHash = createHash('sha256').update(styles).digest('base64');
 
-// The only client script: reveal vault selectors for lilvault/both and
-// serialize their choices into the existing validated permissions field.
-const mintScript = `const form = document.querySelector('form[action="/mint"]');
-const target = form.elements.target;
-const grants = form.querySelector('[data-vault-grants]');
-const boardNote = form.querySelector('[data-board-note]');
-function sync() {
-  const needsVault = target.value === 'lilvault' || target.value === 'both';
-  if (grants) { grants.hidden = !needsVault; grants.disabled = !needsVault; }
-  if (boardNote) boardNote.hidden = target.value === 'lilvault';
-}
-target.addEventListener('change', sync);
-sync();
-form.addEventListener('submit', () => {
-  form.elements.permissions.value = grants && !grants.disabled ? Array.from(grants.querySelectorAll('select[data-vault]'))
-    .filter((select) => select.value !== 'none')
-    .map((select) => select.dataset.vault + ':' + select.value).join('\\n') : '';
-});`;
-export const scriptHash = createHash('sha256').update(mintScript).digest('base64');
-
 const escape = (text) => text.replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char]);
@@ -57,9 +37,9 @@ export function dashboard(csrf, views) {
   const vaults = views.find(({ label }) => label === 'lilvault')?.vaults;
   const options = (names.length === 2 ? [...names, 'both'] : names)
     .map((name) => `<option value="${escape(name)}"${name !== 'lilboard' && !vaults?.length ? ' disabled' : ''}>${name === 'both' ? 'Both backends' : escape(name)}</option>`).join('');
-  const vaultFields = names.includes('lilvault') ? `<fieldset data-vault-grants hidden disabled>
+  const vaultFields = names.includes('lilvault') ? `<fieldset data-vault-grants>
 <legend>lilvault grants</legend><p class="hint">Choose access separately for each vault. Management access is not granted here.</p>
-${(vaults ?? []).map((id) => `<label>${escape(id)} <select data-vault="${escape(id)}">
+${(vaults ?? []).map((id) => `<label>${escape(id)} <select name="grant:${escape(id)}">
 <option value="none">No access</option><option value="read">Read</option><option value="read-write">Read-write</option>
 </select></label>`).join('')}</fieldset>
 ${!vaults?.length ? '<p class="notice" role="alert">Vaults unavailable; lilvault minting is disabled.</p>' : ''}` : '';
@@ -75,15 +55,14 @@ ${warning ? `<p class="notice" role="alert">${escape(warning)}</p>` : ''}${
   return page('Lilauth', `<div class="layout"><section class="panel">
 <div class="panel-head"><h2>Mint an agent credential</h2></div><div class="panel-body">
 <p class="hint">Use a new name. Existing credentials are not rotated. When minting on both backends, one backend may succeed while the other fails.</p>
-<form method="post" action="/mint">${csrfField}${hidden('permissions', '')}
+<form method="post" action="/mint">${csrfField}
 <label>Agent name <input name="name" pattern="[A-Za-z0-9_\\-]{1,64}" required></label>
 <label>Backend <select name="target">${options}</select></label>
 ${names.includes('lilboard') ? '<p class="hint" data-board-note>lilboard agents can write to all boards; reads do not require an agent token.</p>' : ''}
 ${vaultFields}<button type="submit">Mint token</button>
 </form></div></section><div class="registry">${lists}</div></div>
 <p class="hint">Revocation disables the selected credential immediately on its backend.</p>
-<form action="/logout" method="post">${csrfField}<button class="quiet" type="submit">Sign out</button></form>
-<script>${mintScript}</script>`);
+<form action="/logout" method="post">${csrfField}<button class="quiet" type="submit">Sign out</button></form>`);
 }
 
 export function actionResult(create, name, results) {

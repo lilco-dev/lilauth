@@ -68,7 +68,9 @@ p { margin: 0 0 1rem; }
 label { display: block; margin: 0 0 0.875rem; font-weight: 650; }
 label small { display: block; margin-top: 0.35rem; font-weight: 400; color: var(--lil-muted); }
 fieldset { min-width: 0; margin: 0 0 1rem; padding: 1rem 0 0; border: 0; border-top: 1px solid var(--lil-line); }
-fieldset[hidden], [data-board-note][hidden] { display: none; }
+[data-vault-grants] { display: none; }
+form:has(select[name="target"] option:is([value="lilvault"], [value="both"]):checked) [data-vault-grants] { display: block; }
+form:has(select[name="target"] option[value="lilvault"]:checked) [data-board-note] { display: none; }
 legend { padding: 0 0.4rem 0 0; font-weight: 700; }
 input, select, textarea { display: block; width: 100%; min-width: 0; margin-top: 0.35rem; padding: 0.7rem 0.8rem; border: 1px solid var(--lil-line); border-radius: 0.375rem; background: var(--lil-paper); color: var(--lil-ink); font: inherit; }
 textarea { resize: vertical; }

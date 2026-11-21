@@ -7,8 +7,8 @@ page: Lilauth does not store generated tokens or show them in any later response
 Give each token to its intended agent securely; agents call the upstreams
 directly. Lilauth is not an agent proxy. The UI uses the Tiny Club tokens
 from lilboard's `@lilco/ui` in `src/style.css`, embedded with a CSP hash. It
-remains dependency-free, server-rendered HTML; one CSP-hashed inline script
-shows vault selectors for lilvault and submits their grants.
+remains dependency-free, server-rendered HTML with no client JavaScript.
+CSS shows vault selectors only for lilvault or both backends.
 
 ## Run locally
 

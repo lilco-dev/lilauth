@@ -1,6 +1,6 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
-import { actionResult, dashboard, login, page, scriptHash, styleHash } from './html.mjs';
+import { actionResult, dashboard, login, page, styleHash } from './html.mjs';
 import { lilboard } from './lilboard.mjs';
 import { lilvault, parseVaultGrants } from './lilvault.mjs';
 import { verifyPassword } from './password.mjs';
@@ -14,7 +14,7 @@ function respond(res, status, html, headers) {
   res.writeHead(status, {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-store',
-    'Content-Security-Policy': `default-src 'none'; style-src 'sha256-${styleHash}'; script-src 'sha256-${scriptHash}'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
+    'Content-Security-Policy': `default-src 'none'; style-src 'sha256-${styleHash}'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
     'Referrer-Policy': 'same-origin',
     'X-Content-Type-Options': 'nosniff',
     ...headers,
@@ -30,7 +30,8 @@ async function readForm(req, allowedFields) {
   const form = new URLSearchParams((await readLimited(req.iterator({ destroyOnReturn: false }), 8192)).toString('utf8'));
   const values = Object.create(null);
   for (const [key, value] of form) {
-    if (!allowedFields.includes(key) || Object.hasOwn(values, key)) throw new Error('unexpected form field');
+    if (!(allowedFields.includes(key) || (allowedFields.includes('permissions') && /^grant:[A-Za-z0-9_-]{1,64}$/.test(key))) ||
+        Object.hasOwn(values, key)) throw new Error('unexpected form field');
     values[key] = value;
   }
   return values;
@@ -126,8 +127,14 @@ export function createLilauth(config) {
     }
     let permissions;
     if (create) {
-      const input = form.permissions ?? '';
+      const grants = Object.entries(form).filter(([key]) => key.startsWith('grant:'));
       try {
+        if (form.permissions !== undefined && grants.length || grants.some(([, access]) => !['none', 'read', 'read-write'].includes(access))) {
+          throw new Error('ambiguous grants');
+        }
+        const input = form.permissions ?? (targets.includes('lilvault') ? grants
+          .filter(([, access]) => access !== 'none')
+          .map(([key, access]) => `${key.slice(6)}:${access}`).join('\n') : '');
         if (targets.includes('lilvault')) permissions = parseVaultGrants(input);
         else if (input.trim()) throw new Error('unexpected grants');
       } catch {

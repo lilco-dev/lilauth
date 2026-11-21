@@ -4,7 +4,6 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import test from 'node:test';
-import { runInNewContext } from 'node:vm';
 import { readConfig } from '../src/config.mjs';
 import { createPasswordHash, parsePasswordHash } from '../src/password.mjs';
 import { createLilauth } from '../src/server.mjs';
@@ -120,9 +119,9 @@ test('local login, protected form routes, CSRF, and logout', async (t) => {
   const session = await app.signIn();
   assert.match(session.dashboard, /all-board access/);
   assert(session.dashboard.indexOf('Agent name <input') < session.dashboard.indexOf('Backend <select'));
-  assert.match(session.dashboard, /<fieldset data-vault-grants hidden disabled>/);
-  assert.match(session.dashboard, /data-vault="private"/);
-  assert.match(session.dashboard, /data-vault="public"/);
+  assert.match(session.dashboard, /<fieldset data-vault-grants>/);
+  assert.match(session.dashboard, /name="grant:private"/);
+  assert.match(session.dashboard, /name="grant:public"/);
   assert.match(session.dashboard, /private:read/);
   assert.match(session.dashboard, /auth:manage/);
   assert.match(session.dashboard, /&lt;img src=x onerror=alert\(1\)&gt;/);
@@ -141,48 +140,29 @@ test('local login, protected form routes, CSRF, and logout', async (t) => {
   assert.match(await (await app.get(session.cookie)).text(), /Sign in to Lilauth/);
 });
 
-test('vault grant controls are conditional, serialize multiple grants, and obey CSP', async (t) => {
+test('per-vault selectors stay server-rendered and submit validated grants', async (t) => {
   const app = await setup(t);
   const session = await app.signIn();
   const response = await app.get(session.cookie);
   const html = await response.text();
-  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
-  assert(script);
-  const digest = createHash('sha256').update(script).digest('base64');
-  assert(response.headers.get('content-security-policy').includes(`script-src 'sha256-${digest}'`));
-  const selects = [
-    { dataset: { vault: 'private' }, value: 'read' },
-    { dataset: { vault: 'public' }, value: 'read-write' },
-  ];
-  const grants = { hidden: true, disabled: true, querySelectorAll: () => selects };
-  const boardNote = { hidden: false };
-  const handlers = {};
-  const form = {
-    elements: {
-      target: { value: 'lilboard', addEventListener: (_, handler) => { handlers.change = handler; } },
-      permissions: { value: '' },
-    },
-    querySelector: (selector) => selector === '[data-vault-grants]' ? grants : boardNote,
-    addEventListener: (_, handler) => { handlers.submit = handler; },
-  };
-  runInNewContext(script, { document: { querySelector: () => form } });
-  assert.equal(grants.hidden, true);
-  form.elements.target.value = 'lilvault';
-  handlers.change();
-  assert.equal(grants.hidden, false);
-  assert.equal(grants.disabled, false);
-  assert.equal(boardNote.hidden, true);
-  handlers.submit();
-  assert.equal(form.elements.permissions.value, 'private:read\npublic:read-write');
-  form.elements.target.value = 'both';
-  handlers.change();
-  assert.equal(grants.hidden, false);
-  form.elements.target.value = 'lilboard';
-  handlers.change();
-  handlers.submit();
-  assert.equal(grants.disabled, true);
-  assert.equal(boardNote.hidden, false);
-  assert.equal(form.elements.permissions.value, '');
+  const styles = html.match(/<style>([\s\S]*?)<\/style>/)?.[1];
+  assert(styles);
+  const digest = createHash('sha256').update(styles).digest('base64');
+  assert(response.headers.get('content-security-policy').includes(`style-src 'sha256-${digest}'`));
+  assert(!response.headers.get('content-security-policy').includes('script-src'));
+  assert(!html.includes('<script'));
+  assert.match(styles, /option:is\(\[value="lilvault"\], \[value="both"\]\):checked/);
+  const minted = await session.post('/mint', {
+    target: 'lilvault', name: 'chosen', 'grant:private': 'read', 'grant:public': 'read-write',
+  });
+  assert.equal(minted.status, 201);
+  assert.deepEqual(app.vault.writes()[0].body.permissions, ['private:read', 'public:read-write']);
+  const rejected = await session.post('/mint', { target: 'lilvault', name: 'bad', 'grant:private': 'auth:manage' });
+  assert.equal(rejected.status, 400);
+  assert.equal(app.vault.writes().length, 1);
+  const board = await session.post('/mint', { target: 'lilboard', name: 'board-only', 'grant:private': 'read' });
+  assert.equal(board.status, 201);
+  assert.equal(app.vault.writes().length, 1);
   app.vault.badVaultList = true;
   const unavailable = await (await app.get(session.cookie)).text();
   assert.match(unavailable, /value="lilvault" disabled/);
