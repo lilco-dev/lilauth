@@ -358,4 +358,17 @@ test('startup config validates hash, secret files, origins, and loopback excepti
     { LILCO_PUBLIC_ORIGIN: 'http://127.0.0.1:3000' },
     { LILCO_INSECURE_LOOPBACK: '1', LILCO_PUBLIC_ORIGIN: 'http://127.0.0.1:3000', LILCO_LISTEN_HOST: '0.0.0.0' },
   ]) assert.throws(() => readConfig({ ...env, ...settings }), /^Error: Invalid or missing /);
+
+  const oidc = { ...env, LILCO_AUTH_MODE: 'oidc', LILCO_ADMIN_PASSWORD_HASH_FILE: undefined,
+    LILCO_OIDC_ISSUER_URL: 'https://idp.example.test/application/o/lilauth/',
+    LILCO_OIDC_CLIENT_ID: 'testclient', LILCO_OIDC_CLIENT_SECRET_FILE: tokenFile, LILCO_OIDC_ADMIN_GROUP: 'lilauth-admins' };
+  assert.equal(readConfig(oidc).oidc.group, 'lilauth-admins');
+  for (const settings of [
+    { LILCO_OIDC_ADMIN_GROUP: '' },
+    { LILCO_OIDC_CLIENT_SECRET_FILE: undefined, LILCO_OIDC_CLIENT_SECRET: 'not-read' },
+    { LILCO_OIDC_ISSUER_URL: 'http://idp.example.test/' },
+    { LILCO_OIDC_ISSUER_URL: 'https://user:password@idp.example.test/' },
+    { LILCO_OIDC_ISSUER_URL: 'https://idp.example.test/?query=yes' },
+    { LILCO_INSECURE_LOOPBACK: '1', LILCO_PUBLIC_ORIGIN: 'http://127.0.0.1:3000' },
+  ]) assert.throws(() => readConfig({ ...oidc, ...settings }), /^Error: Invalid or missing /);
 });

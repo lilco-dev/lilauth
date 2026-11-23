@@ -18,15 +18,15 @@ export function page(title, body) {
 <p class="footer">A lilco tool · Tokens are shown once and never stored by Lilauth.</p></main></body></html>`;
 }
 
-export function login(message = '') {
+export function login(message = '', oidcStart) {
   return page('Sign in to Lilauth', `<section class="panel login-panel" aria-label="Sign in">
 <div class="panel-head"><h2>Welcome back</h2></div><div class="panel-body">
 ${message ? `<p class="notice" role="alert">${escape(message)}</p>` : '<p class="hint">Sign in to manage agent credentials for lilboard and lilvault.</p>'}
-<form action="/login" method="post">
+${oidcStart ? `<p><a href="${escape(oidcStart)}">Sign in with SSO</a></p>` : `<form action="/login" method="post">
 <label>Username <input name="username" autocomplete="username" maxlength="80" required></label>
 <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
 <button type="submit">Sign in</button>
-</form></div></section>`);
+</form>`}</div></section>`);
 }
 
 const hidden = (name, value) => `<input type="hidden" name="${name}" value="${escape(value)}">`;

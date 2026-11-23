@@ -25,6 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - run: npm ci --ignore-scripts
       - run: npm test
       - name: Image builds
         run: docker build -t lilauth:verify .

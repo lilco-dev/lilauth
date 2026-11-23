@@ -7,14 +7,14 @@ page: Lilauth does not store generated tokens or show them in any later response
 Give each token to its intended agent securely; agents call the upstreams
 directly. Lilauth is not an agent proxy. The UI uses the Tiny Club tokens
 from lilboard's `@lilco/ui` in `src/style.css`, embedded with a CSP hash. It
-remains dependency-free, server-rendered HTML with no client JavaScript.
+is server-rendered HTML with no client JavaScript.
 CSS shows vault selectors only for lilvault or both backends.
 
 ## Run locally
 
-Use Node **24 LTS** (24.7 or later, preferably the latest patch). There are no npm
-dependencies or install step. Generate a password hash locally; use a long,
-unique password. With Bash and shell tracing off:
+Use Node **24 LTS** (24.7 or later, preferably the latest patch). Run
+`npm ci --ignore-scripts` before starting. For local sign-in, generate a password
+hash; use a long, unique password. With Bash and shell tracing off:
 
 ```bash
 (
@@ -59,6 +59,39 @@ management tokens if using both. Lilauth rejects invalid startup configuration
 without contacting upstreams; list requests check upstream availability and
 credentials after sign-in. Upstream requests do not follow redirects and have
 five-second deadlines.
+
+## Optional OIDC sign-in
+
+Register a confidential OpenID Connect client at your identity provider. Use
+Authorization Code with PKCE (`S256`), RS256-signed ID tokens, and the exact
+HTTPS redirect URI `https://lilauth.example.com/auth/oidc/callback`. Lilauth uses
+`client_secret_basic`, requests `openid profile`, and requires an exact group
+name in the ID token's `groups` string array. Restrict access to the app at the
+provider as well. For Authentik, keep the `profile` scope mapping, select an RSA
+signing key, and enable **Include claims in ID token**.
+
+```bash
+export LILCO_AUTH_MODE=oidc
+export LILCO_PUBLIC_ORIGIN=https://lilauth.example.com
+export LILCO_OIDC_ISSUER_URL=https://auth.example.com/application/o/lilauth/
+export LILCO_OIDC_CLIENT_ID=lilauth
+export LILCO_OIDC_CLIENT_SECRET_FILE=./secrets/oidc-client-secret
+export LILCO_OIDC_ADMIN_GROUP=lilauth-admins
+```
+
+Keep the client secret in a private, read-only file mount, not in Compose
+variables or Git. If adapting `compose.example.yml`, replace the local auth
+settings and password hash mount with the OIDC settings and secret mount.
+Keep `LILCO_INSECURE_LOOPBACK` unset. The issuer URL must match the discovery
+metadata exactly (including an Authentik issuer's trailing slash). Confirm the
+server can reach the issuer over HTTPS, and have the proxy omit callback query
+strings from access logs; they carry authorization codes.
+
+OIDC and local password sign-in are mutually exclusive. Recover by switching
+back to `local` with the original hash and restarting. Membership is checked
+at sign-in; removing a member does not end that person's already-issued Lilauth
+session. Restart the dashboard to invalidate all sessions immediately.
+Signing out of Lilauth ends its session, not the provider's SSO session.
 
 ## Upstream management credentials
 
@@ -106,12 +139,13 @@ readable. Supply the non-secret Compose variables or remove a backend's two
 environment entries and its mount. Inside the container, `localhost` means the
 container itself, not another upstream service.
 
-There is one environment-configured local admin, no signup or user database,
-and no default credentials. Sessions are in memory, expire after eight hours,
-support sign-out, and are capped at 32 (oldest evicted first). Cookies are
-HttpOnly, SameSite=Strict and Secure outside explicit loopback mode. Form
-mutations require an exact public origin and a session CSRF token. Login
-verifications run one at a time and five failures in a minute throttle sign-in
+Local mode has one environment-configured admin. There is no signup, user
+database, or default credential. Sessions are in memory, expire after eight
+hours, support sign-out, and are capped at 32 (oldest evicted first). Cookies
+are HttpOnly and Secure outside explicit loopback mode, with SameSite=Strict
+in local mode and Lax for OIDC redirects. Form mutations require an exact
+public origin and a session CSRF token. Local password verifications run one
+at a time and five failures in a minute throttle sign-in
 globally, independent of peer IP and spoofable proxy headers. This limits
 password guesses but can let a caller temporarily deny sign-in. Restrict access
 to the dashboard to trusted operators.
@@ -140,7 +174,7 @@ on the selected backend.
 **Deferred:** atomic lifecycle operations and rotation need upstream support.
 Both POST endpoints replace existing names rather than offering create-only
 or conditional replacement; lilvault updates the token and permissions files
-separately. No rotation is offered. OIDC, multiple admins, and shared sessions
+separately. No rotation is offered. Multiple local accounts and shared sessions
 are also deferred.
 
 ## Checks
