@@ -17,7 +17,8 @@ function respond(res, status, html, headers) {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-store',
     'Content-Security-Policy': `default-src 'none'; style-src 'sha256-${styleHash}'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
-    'Referrer-Policy': 'no-referrer',
+    // Keep redirects private; no-referrer on form pages turns their POST Origin into null.
+    'Referrer-Policy': headers?.Location ? 'no-referrer' : 'strict-origin',
     'X-Content-Type-Options': 'nosniff',
     ...headers,
   });

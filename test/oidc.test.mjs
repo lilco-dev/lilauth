@@ -95,6 +95,7 @@ test('OIDC only offers SSO, validates PKCE and issues an admin session once', as
   assert.match(cookies[1], /^__Host-lilauth=[a-f0-9]{64}; Path=\/; HttpOnly; SameSite=Lax; Max-Age=28800; Secure$/);
   const session = cookies[1].split(';')[0];
   const dashboard = await idp.request('/', { headers: { Cookie: session } });
+  assert.equal(dashboard.headers.get('referrer-policy'), 'strict-origin');
   assert.match(await dashboard.text(), /Sign out/);
   assert.equal((await idp.request('/mint', { method: 'POST', headers: { Cookie: session, Origin: publicOrigin }, body: new URLSearchParams({ csrf: 'wrong' }) })).status, 403);
   assert.equal((await idp.callback()).status, 400);

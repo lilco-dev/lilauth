@@ -110,6 +110,7 @@ test('local login, protected form routes, CSRF, and logout', async (t) => {
   const digest = createHash('sha256').update(stylesheet).digest('base64');
   assert(anonymous.headers.get('content-security-policy').includes(`style-src 'sha256-${digest}'`));
   assert.equal(anonymous.headers.get('cache-control'), 'no-store');
+  assert.equal(anonymous.headers.get('referrer-policy'), 'strict-origin');
   assert.equal((await app.post('/login', { username, password }, { Origin: wrongOrigin })).status, 403);
   const badLogin = await app.post('/login', { username, password: 'bad<&password>' });
   assert.equal(badLogin.status, 401);
@@ -130,7 +131,11 @@ test('local login, protected form routes, CSRF, and logout', async (t) => {
   const count = app.board.calls.length;
   assert.equal((await app.post('/mint', { target: 'lilboard', name: 'new' }, { Cookie: session.cookie })).status, 403);
   assert.equal((await session.post('/revoke', { csrf: 'bad', target: 'lilboard', name: 'old' })).status, 403);
-  assert.equal((await session.post('/mint', { target: 'lilboard', name: 'new' }, { Origin: wrongOrigin })).status, 403);
+  for (const origin of [wrongOrigin, 'null']) {
+    const rejected = await session.post('/mint', { target: 'lilboard', name: 'new' }, { Origin: origin });
+    assert.equal(rejected.status, 403);
+    assert.match(await rejected.text(), /Request origin rejected/);
+  }
   assert.equal((await session.post('/logout', { csrf: 'bad' })).status, 403);
   assert.equal(app.board.calls.length, count);
   const logout = await session.post('/logout', {});
